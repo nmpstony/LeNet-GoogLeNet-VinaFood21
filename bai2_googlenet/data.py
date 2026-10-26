@@ -12,6 +12,7 @@ STD = [0.229, 0.224, 0.225]
 def build_transforms(img_size=64):
     """
     Tạo bộ biến đổi dữ liệu (thống nhất hoàn toàn với Bài 1 để đảm bảo tính so sánh):
+      - Tự động convert RGB để loại bỏ warning của ảnh Palette/RGBA.
       - Train: RandomResizedCrop, RandomHorizontalFlip, RandomRotation, ColorJitter.
       - Eval (Val/Test): Resize cố định 64x64 và chuẩn hoá.
     """

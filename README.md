@@ -47,30 +47,41 @@ cnn_vinafood21/
 
 ## 🚀 3. Hướng dẫn chạy nhanh
 
-### Cài đặt môi trường
+### A. Chạy trên Kaggle (GPU miễn phí)
+Dự án đã được tích hợp sẵn Kaggle Kernel và đang chạy tại:
+🔗 **[Kaggle Notebook: DS201 Lab02 VinaFood21 CNN](https://www.kaggle.com/code/nmpstony/ds201-lab02-vinafood21-cnn)**
+- GPU: Đã bật GPU (T4 / P100)
+- Tự động mount bộ dữ liệu `sonbui25/vinafood21`
+- Tự động chạy Bài 1 (AvgPool, MaxPool) và Bài 2 (GoogLeNet)
+- Đầy đủ `ReduceLROnPlateau` và `EarlyStopping`
+
+---
+
+### B. Chạy trên máy cá nhân (Local với GPU)
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### Chạy Bài 1: LeNet-5
+#### Chạy Bài 1: LeNet-5
 ```bash
 cd bai1_lenet
 
 # 1. Kiểm tra shape và bảng tham số
 python model.py
 
-# 2. Huấn luyện phiên bản mặc định (AvgPool2d)
-python train.py --data_root ../../VinaFood21 --epochs 20 --batch_size 32 --lr 1e-3 --pool avg --out_dir outputs_avg
+# 2. Huấn luyện bản AvgPool (với ReduceLROnPlateau & EarlyStopping)
+python train.py --data_root ../../VinaFood21 --epochs 20 --batch_size 64 --num_workers 4 --pool avg --patience_lr 2 --patience_es 5 --out_dir outputs_avg
 
-# 3. Huấn luyện phiên bản so sánh (MaxPool2d)
-python train.py --data_root ../../VinaFood21 --epochs 20 --batch_size 32 --lr 1e-3 --pool max --out_dir outputs_max
+# 3. Huấn luyện bản MaxPool để so sánh
+python train.py --data_root ../../VinaFood21 --epochs 20 --batch_size 64 --num_workers 4 --pool max --patience_lr 2 --patience_es 5 --out_dir outputs_max
 
 # 4. Đánh giá trên tập test
 python evaluate.py --data_root ../../VinaFood21 --ckpt outputs_avg/best.pt
 python evaluate.py --data_root ../../VinaFood21 --ckpt outputs_max/best.pt
 ```
 
-### Chạy Bài 2: GoogLeNet rút gọn
+#### Chạy Bài 2: GoogLeNet rút gọn
 ```bash
 cd ../bai2_googlenet
 
@@ -78,7 +89,7 @@ cd ../bai2_googlenet
 python model.py
 
 # 2. Huấn luyện mô hình (4 Inception blocks, Global Average Pooling)
-python train.py --data_root ../../VinaFood21 --epochs 20 --batch_size 32 --lr 1e-3 --num_blocks 4 --out_dir outputs
+python train.py --data_root ../../VinaFood21 --epochs 20 --batch_size 64 --num_workers 4 --num_blocks 4 --patience_lr 2 --patience_es 5 --out_dir outputs
 
 # 3. Đánh giá trên tập test
 python evaluate.py --data_root ../../VinaFood21 --ckpt outputs/best.pt

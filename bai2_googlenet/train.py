@@ -20,17 +20,19 @@ def get_args():
     p.add_argument("--batch_size", type=int, default=32,
                    help="Batch size (mặc định: 32)")
     p.add_argument("--epochs", type=int, default=20,
-                   help="Số epoch huấn luyện (mặc định: 20)")
+                   help="Số epoch huấn luyện tối đa (mặc định: 20)")
     p.add_argument("--lr", type=float, default=1e-3,
-                   help="Learning rate cho Adam (mặc định: 0.001)")
-    p.add_argument("--num_blocks", type=int, default=4, choices=[3, 4],
-                   help="Số lượng Inception block: 3 hoặc 4 (mặc định: 4)")
-    p.add_argument("--lr_patience", type=int, default=2,
-                   help="Số epoch không cải thiện val loss trước khi giảm LR (mặc định: 2)")
+                   help="Learning rate ban đầu cho Adam (mặc định: 0.001)")
+    p.add_argument("--patience_lr", type=int, default=2,
+                   help="Số epoch chờ trước khi giảm LR qua ReduceLROnPlateau (mặc định: 2)")
+    p.add_argument("--patience_es", type=int, default=5,
+                   help="Số epoch chờ trước khi dừng sớm Early Stopping (mặc định: 5)")
     p.add_argument("--lr_factor", type=float, default=0.5,
                    help="Hệ số giảm learning rate (mặc định: 0.5)")
-    p.add_argument("--early_stop", type=int, default=5,
-                   help="Patience cho Early Stopping (mặc định: 5, đặt 0 để tắt)")
+    p.add_argument("--min_lr", type=float, default=1e-6,
+                   help="Learning rate tối thiểu (mặc định: 1e-6)")
+    p.add_argument("--num_blocks", type=int, default=4, choices=[3, 4],
+                   help="Số lượng Inception block: 3 hoặc 4 (mặc định: 4)")
     p.add_argument("--num_workers", type=int, default=2,
                    help="Số luồng nạp dữ liệu (mặc định: 2)")
     p.add_argument("--seed", type=int, default=42,
@@ -107,25 +109,26 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="min", factor=args.lr_factor, patience=args.lr_patience, min_lr=1e-6
+        optimizer, mode="min", factor=args.lr_factor, patience=args.patience_lr,
+        min_lr=args.min_lr, verbose=True
     )
 
     history = []
     best_f1 = -1.0
-    epochs_no_improve = 0
+    es_counter = 0
     total_train_time = 0.0
 
-    print("\n--- BẮT ĐẦU HUẤN LUYỆN (CÓ REDUCE LR VÀ EARLY STOPPING) ---")
+    print("\n--- BẮT ĐẦU HUẤN LUYỆN (CÓ REDUCE LR & EARLY STOPPING) ---")
     for ep in range(1, args.epochs + 1):
+        current_lr = optimizer.param_groups[0]["lr"]
         tr_loss, tr_acc, ep_time = train_one_epoch(model, train_dl, criterion, optimizer, device)
         va_loss, va_acc, va_prec, va_rec, va_f1, _, _ = evaluate(model, val_dl, criterion, device)
         total_train_time += ep_time
 
-        # Giảm LR nếu val loss không cải thiện
-        old_lr = optimizer.param_groups[0]["lr"]
+        # Cập nhật Scheduler
         scheduler.step(va_loss)
-        current_lr = optimizer.param_groups[0]["lr"]
-        lr_changed_msg = f" | [LR giảm: {old_lr:.6f} -> {current_lr:.6f}]" if current_lr < old_lr else ""
+        new_lr = optimizer.param_groups[0]["lr"]
+        lr_changed = (new_lr != current_lr)
 
         history.append({
             "epoch": ep,
@@ -143,7 +146,7 @@ def main():
         mark = ""
         if va_f1 > best_f1:
             best_f1 = va_f1
-            epochs_no_improve = 0
+            es_counter = 0
             torch.save({
                 "model": model.state_dict(),
                 "classes": classes,
@@ -154,15 +157,16 @@ def main():
             }, out_dir / "best.pt")
             mark = " [BEST]"
         else:
-            epochs_no_improve += 1
+            es_counter += 1
 
-        print(f"Epoch {ep:>2}/{args.epochs} [{ep_time:.1f}s | lr: {current_lr:.6f}] "
+        lr_info = f" | LR: {new_lr:.2e}" if lr_changed else ""
+        print(f"Epoch {ep:>2}/{args.epochs} [{ep_time:.1f}s] "
               f"Train Loss: {tr_loss:.4f} | Acc: {tr_acc:.4f} || "
-              f"Val Loss: {va_loss:.4f} | Acc: {va_acc:.4f} | F1: {va_f1:.4f}{mark}{lr_changed_msg}")
+              f"Val Loss: {va_loss:.4f} | Acc: {va_acc:.4f} | Prec: {va_prec:.4f} | Rec: {va_rec:.4f} | F1: {va_f1:.4f}{mark}{lr_info}")
 
         # Kiểm tra Early Stopping
-        if args.early_stop > 0 and epochs_no_improve >= args.early_stop:
-            print(f"\n[EARLY STOPPING] Kích hoạt sau {ep} epoch vì Val Macro-F1 không tăng trong {args.early_stop} epoch liên tiếp.")
+        if es_counter >= args.patience_es:
+            print(f"\n[EARLY STOPPING] Kích hoạt tại Epoch {ep} vì Val Macro-F1 không cải thiện trong {args.patience_es} epochs liên tiếp.")
             break
 
     avg_time_per_epoch = total_train_time / args.epochs

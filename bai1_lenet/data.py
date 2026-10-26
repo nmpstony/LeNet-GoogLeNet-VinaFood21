@@ -12,6 +12,7 @@ STD = [0.229, 0.224, 0.225]
 def build_transforms(img_size=64):
     """
     Tạo bộ biến đổi dữ liệu:
+      - Tự động convert RGB để loại bỏ warning của ảnh Palette/RGBA.
       - Train: có áp dụng Data Augmentation (Crop ngẫu nhiên, Flip ngang, Xoay nhẹ, Đổi màu).
       - Eval (Val/Test): chỉ resize cố định và chuẩn hoá.
     """
