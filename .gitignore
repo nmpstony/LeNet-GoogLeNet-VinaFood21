@@ -1,0 +1,29 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyTorch checkpoints and training outputs
+outputs/
+outputs_*/
+*.pt
+*.pth
+
+# Dataset
+VinaFood21/
+data/
+
+# OS files
+.DS_Store
+Thumbs.db
