@@ -117,7 +117,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="min", factor=args.lr_factor, patience=args.patience_lr,
-        min_lr=args.min_lr, verbose=True
+        min_lr=args.min_lr
     )
 
     history = []
