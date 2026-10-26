@@ -1,5 +1,6 @@
 import argparse
 import csv
+import os
 import time
 from pathlib import Path
 
@@ -17,24 +18,24 @@ def get_args():
                    help="Đường dẫn đến thư mục VinaFood21 (chứa train/ và test/)")
     p.add_argument("--img_size", type=int, default=64,
                    help="Kích thước ảnh vuông resize (mặc định: 64)")
-    p.add_argument("--batch_size", type=int, default=32,
-                   help="Batch size (mặc định: 32)")
-    p.add_argument("--epochs", type=int, default=20,
-                   help="Số epoch huấn luyện tối đa (mặc định: 20)")
+    p.add_argument("--batch_size", type=int, default=64,
+                   help="Batch size (mặc định: 64)")
+    p.add_argument("--epochs", type=int, default=100,
+                   help="Số epoch huấn luyện tối đa (mặc định: 100)")
     p.add_argument("--lr", type=float, default=1e-3,
                    help="Learning rate ban đầu cho Adam (mặc định: 0.001)")
-    p.add_argument("--patience_lr", type=int, default=2,
-                   help="Số epoch chờ trước khi giảm LR qua ReduceLROnPlateau (mặc định: 2)")
-    p.add_argument("--patience_es", type=int, default=5,
-                   help="Số epoch chờ trước khi dừng sớm Early Stopping (mặc định: 5)")
+    p.add_argument("--patience_lr", type=int, default=5,
+                   help="Số epoch chờ trước khi giảm LR qua ReduceLROnPlateau (mặc định: 5)")
+    p.add_argument("--patience_es", type=int, default=10,
+                   help="Số epoch chờ trước khi dừng sớm Early Stopping (mặc định: 10)")
     p.add_argument("--lr_factor", type=float, default=0.5,
                    help="Hệ số giảm learning rate (mặc định: 0.5)")
     p.add_argument("--min_lr", type=float, default=1e-6,
                    help="Learning rate tối thiểu (mặc định: 1e-6)")
     p.add_argument("--pool", type=str, default="avg", choices=["avg", "max"],
                    help="Loại pooling: 'avg' (AvgPool2d) hoặc 'max' (MaxPool2d)")
-    p.add_argument("--num_workers", type=int, default=2,
-                   help="Số luồng nạp dữ liệu (mặc định: 2)")
+    p.add_argument("--num_workers", type=int, default=os.cpu_count() or 4,
+                   help=f"Số luồng nạp dữ liệu (mặc định tối đa CPU: {os.cpu_count() or 4})")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed ngẫu nhiên (mặc định: 42)")
     p.add_argument("--out_dir", type=str, default="outputs",
