@@ -83,7 +83,7 @@ Kết quả đánh giá trên toàn bộ **6,682 ảnh** tập Test của bộ d
 | **Test Accuracy** | 32.12% | 35.41% | **52.66%** *(+17.25% so với MaxPool)* |
 | **Macro-F1** | 30.32% | 34.09% | **51.55%** *(+17.46% so với MaxPool)* |
 
-### 💡 Nhận xét chuyên sâu:
+### Nhận xét:
 1. **Sức mạnh của trích xuất đặc trưng đa tỉ lệ (Multi-scale Feature Extraction)**:
    - Các Inception blocks xử lý song song với các kích thước kernel $1\times 1$, $3\times 3$, và $5\times 5$, cho phép mạng đồng thời học được cả các chi tiết nhỏ (sợi bún, hành, ớt) lẫn các cấu trúc tổng thể của món ăn (bát phở, đĩa cơm tấm). Nhờ đó, độ chính xác tăng vọt từ **35.41%** lên **52.66%** (+17.25%).
 2. **Ưu thế của Global Average Pooling (GAP)**:
