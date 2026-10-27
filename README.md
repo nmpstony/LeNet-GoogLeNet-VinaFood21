@@ -1,8 +1,8 @@
 # DS201 - Lab 2: Mạng Neural Tích Chập (CNN) trên bộ dữ liệu VinaFood21
 
-Kho lưu trữ này chứa mã nguồn hoàn chỉnh và kết quả thực nghiệm cho **Bài 1 (LeNet-5: AvgPool vs MaxPool)** và **Bài 2 (GoogLeNet rút gọn: 4 Inception Blocks)** thuộc môn **DS201 – Deep Learning trong Khoa học Dữ liệu**. 
+Kho lưu trữ này chứa mã nguồn hoàn chỉnh và kết quả thực nghiệm cho **Bài 1 (LeNet-5: AvgPool vs MaxPool)** và **Bài 2 (GoogLeNet: 4 Inception Blocks)** thuộc môn **DS201 – Deep Learning trong Khoa học Dữ liệu**. 
 
-Toàn bộ mô hình đã được huấn luyện và đánh giá trên **GPU Tesla T4 (Kaggle)** với cơ chế tối ưu **ReduceLROnPlateau** và **EarlyStopping**.
+Toàn bộ mô hình đã được huấn luyện và đánh giá trên **GPU Tesla T4 (Kaggle)** với cơ chế **ReduceLROnPlateau** và **EarlyStopping**.
 
 ---
 
