@@ -14,9 +14,7 @@ ENV/
 # Jupyter
 .ipynb_checkpoints/
 
-# PyTorch checkpoints and training outputs
-outputs/
-outputs_*/
+# PyTorch heavy model weights (ignore large .pt/.pth files)
 *.pt
 *.pth
 

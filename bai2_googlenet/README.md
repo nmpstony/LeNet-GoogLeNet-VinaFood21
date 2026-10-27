@@ -1,76 +1,90 @@
 # Bài 2: Xây dựng và Huấn luyện mô hình GoogLeNet rút gọn trên VinaFood21
 
-Dự án này triển khai kiến trúc GoogLeNet rút gọn với 3 đến 4 Inception Blocks (theo hướng dẫn B.4 trong tài liệu DS201 Lab 2) để phân loại 21 món ăn Việt Nam từ bộ dữ liệu VinaFood21.
+Dự án này triển khai kiến trúc GoogLeNet rút gọn với 4 Inception Blocks và Global Average Pooling (theo hướng dẫn B.4 trong tài liệu DS201 Lab 2) để phân loại 21 món ăn Việt Nam từ bộ dữ liệu VinaFood21. Mô hình được huấn luyện trên GPU (Kaggle Tesla T4) với cơ chế `ReduceLROnPlateau` và `EarlyStopping`.
+
+---
 
 ## 1. Cấu trúc thư mục
 
 ```
 bai2_googlenet/
-├── data.py          # Data augmentation, DataLoader và phân chia Train/Val/Test
-├── model.py         # InceptionBlock, MiniGoogLeNet và hàm đối chiếu channel lý thuyết vs code
-├── engine.py        # train_one_epoch và evaluate tính toán 4 độ đo (Acc, Prec, Rec, F1)
-├── train.py         # Huấn luyện mô hình, lưu checkpoint tốt nhất và biểu đồ loss
-├── evaluate.py      # Đánh giá trên tập test, in bảng 4 độ đo, bảng F1 và ma trận nhầm lẫn
-├── requirements.txt # Danh sách thư viện cần thiết
-└── README.md        # Hướng dẫn chi tiết
+├── data.py          # Transforms (đồng bộ với Bài 1, cùng seed 42)
+├── model.py         # InceptionBlock, MiniGoogLeNet, hàm đối chiếu channel
+├── engine.py        # train_one_epoch và evaluate tính toán 4 độ đo
+├── train.py         # Huấn luyện mô hình, ReduceLROnPlateau, EarlyStopping
+├── evaluate.py      # Đánh giá trên test, in bảng F1 và ma trận nhầm lẫn 21×21
+├── requirements.txt # Danh sách thư viện
+├── README.md        # Báo cáo kết quả chi tiết
+└── outputs/         # Checkpoint và kết quả thực nghiệm
+    ├── best.pt
+    ├── history.csv
+    ├── loss_curve.png
+    ├── confusion_matrix_googlenet.png
+    └── test_metrics_googlenet.json
 ```
+
+---
 
 ## 2. Đặc tả kiến trúc GoogLeNet rút gọn
 
-- **Ảnh đầu vào**: 64 × 64 × 3 (đồng bộ với Bài 1 để đảm bảo tính so sánh công bằng).
-- **Stem**: Conv2d(3, 64, kernel=3, padding=1) + ReLU -> Output: 64 × 64 × 64.
-- **Inception Block 1**: `(64, 16, 16, 24, 4, 8, 8)`
-  - Nhánh 1 (1×1): 16 channels
-  - Nhánh 2 (1×1 -> 3×3): 24 channels
-  - Nhánh 3 (1×1 -> 5×5): 8 channels
-  - Nhánh 4 (pool -> 1×1): 8 channels
-  - **Output channel**: 16 + 24 + 8 + 8 = **56 channels** (theo công thức lý thuyết $f_1 + f_3 + f_5 + f_p$).
-  - MaxPool 3×3 (stride 2) -> Output: 32 × 32 × 56.
-- **Inception Block 2**: `(56, 32, 32, 48, 8, 16, 16)`
-  - Nhánh 1 (1×1): 32 channels
-  - Nhánh 2 (1×1 -> 3×3): 48 channels
-  - Nhánh 3 (1×1 -> 5×5): 16 channels
-  - Nhánh 4 (pool -> 1×1): 16 channels
-  - **Output channel**: 32 + 48 + 16 + 16 = **112 channels** (22,104 tham số, khớp mục B.4 Bước 3).
-  - MaxPool 3×3 (stride 2) -> Output: 16 × 16 × 112.
-- **Inception Block 3**: `(112, 64, 64, 96, 16, 32, 32)`
-  - **Output channel**: 64 + 96 + 32 + 32 = **224 channels**.
-- **Inception Block 4**: `(224, 64, 64, 96, 16, 32, 32)`
-  - **Output channel**: 64 + 96 + 32 + 32 = **224 channels**.
-  - MaxPool 3×3 (stride 2) -> Output: 8 × 8 × 224.
-- **Phân loại**:
-  - Dùng `nn.AdaptiveAvgPool2d((1, 1))` (GAP) thay thế `nn.Flatten()` để giảm mạnh số tham số và tránh ghi nhớ dữ liệu.
-  - Dropout(0.4) -> Linear(224, 21).
+- **Ảnh đầu vào**: 64 × 64 × 3 (ảnh màu).
+- **Cấu trúc Inception Block**: Gồm 4 nhánh song song nối bằng `torch.cat(..., dim=1)`.
+- **Global Average Pooling**: Dùng `nn.AdaptiveAvgPool2d((1, 1))` gom feature map về vector 1D thay thế `nn.Flatten()` trước Linear classifier.
 
-## 3. Cài đặt và Hướng dẫn chạy
+### Bảng đối chiếu số channel output từng Inception Block (Tính tay vs In từ Code):
 
-### Cài đặt môi trường
-```bash
-pip install -r requirements.txt
-```
+| Khối / Tầng | Cấu hình tham số $(in\_ch, f_1, f_{3r}, f_3, f_{5r}, f_5, f_p)$ | Channel ra (Tính tay) | Channel ra (Code in) | Số tham số |
+|---|---|:---:|:---:|---:|
+| **Stem Conv** | Conv2d(3, 64, kernel=3, pad=1) | 64 | 64 | 1,792 |
+| **Inception 1** | $(64, 16, 16, 24, 4, 8, 8)$ | $16 + 24 + 8 + 8 = 56$ | **56** | 7,148 |
+| **Inception 2** | $(56, 32, 32, 48, 8, 16, 16)$ | $32 + 48 + 16 + 16 = 112$ | **112** | **22,104** *(khớp B.4 Bước 3)* |
+| **Inception 3** | $(112, 64, 64, 96, 16, 32, 32)$ | $64 + 96 + 32 + 32 = 224$ | **224** | 88,112 |
+| **Inception 4** | $(224, 64, 64, 96, 16, 32, 32)$ | $64 + 96 + 32 + 32 = 224$ | **224** | 107,824 |
+| **Classifier** | GAP + Dropout(0.4) + Linear(224, 21) | 21 | 21 | 4,725 |
+| **TỔNG CỘNG** | **Toàn bộ mạng MiniGoogLeNet** | | | **231,705** |
 
-### Kiểm tra mô hình và đối chiếu channel
-```bash
-python model.py
-```
+---
 
-### Huấn luyện mô hình (mặc định 4 blocks)
-```bash
-python train.py --data_root /path/to/VinaFood21 --epochs 20 --batch_size 32 --lr 1e-3 --num_blocks 4 --out_dir outputs
-```
+## 3. Kết quả thực nghiệm trên tập Test (Kaggle GPU)
 
-*(Hoặc chạy với cấu hình 3 Inception blocks: `--num_blocks 3`)*
+Kết quả đánh giá trên toàn bộ **6,682 ảnh** tập Test của bộ dữ liệu VinaFood21:
 
-### Đánh giá trên tập test
-```bash
-python evaluate.py --data_root /path/to/VinaFood21 --ckpt outputs/best.pt
-```
+| Chỉ số đánh giá | Kết quả thực tế |
+|---|:---:|
+| **Tổng số tham số** | **231,705** |
+| **Số Epoch chạy thực tế** | 75 epochs *(dừng sớm qua Early Stopping)* |
+| **Best Checkpoint tại Epoch** | **Epoch 65** |
+| **Thời gian trung bình** | **57.07 s/epoch** |
+| **Test Loss** | **1.5896** |
+| **Test Accuracy** | **52.66%** |
+| **Macro Precision** | **53.42%** |
+| **Macro Recall** | **51.47%** |
+| **Macro F1-Score** | **51.55%** |
 
-## 4. Báo cáo kết quả yêu cầu
+---
 
-Sau khi chạy xong, kết quả lưu trong thư mục `outputs/` gồm:
-- `best.pt`: Trọng số mô hình có Macro-F1 tập val cao nhất.
-- `history.csv`: Bảng ghi chép chi tiết qua từng epoch: Loss, Accuracy, Precision, Recall, F1 và thời gian huấn luyện.
-- `loss_curve.png`: Biểu đồ đường cong Loss và Macro-F1.
-- `confusion_matrix_googlenet.png`: Ma trận nhầm lẫn kích thước 21×21.
-- `test_metrics_googlenet.json`: Tóm tắt các độ đo chính trên tập test.
+## 4. Hình ảnh trực quan hoá kết quả
+
+### 4.1. Biểu đồ huấn luyện Loss & Val F1:
+![Loss Curve GoogLeNet](outputs/loss_curve.png)
+
+### 4.2. Ma trận nhầm lẫn (Confusion Matrix 21×21):
+![Confusion Matrix GoogLeNet](outputs/confusion_matrix_googlenet.png)
+
+---
+
+## 5. So sánh với Bài 1 (LeNet-5)
+
+| Tiêu chí | LeNet-5 (AvgPool) | LeNet-5 (MaxPool) | GoogLeNet rút gọn (4 Blocks) |
+|---|:---:|:---:|:---:|
+| **Số tham số** | 339,421 | 339,421 | **231,705** *(giảm 31.7%)* |
+| **Thời gian / epoch** | 68.03 s | 56.13 s | **57.07 s** *(tương đương)* |
+| **Test Loss** | 2.3484 | 2.2536 | **1.5896** *(thấp hơn rất nhiều)* |
+| **Test Accuracy** | 32.12% | 35.41% | **52.66%** *(+17.25% so với MaxPool)* |
+| **Macro-F1** | 30.32% | 34.09% | **51.55%** *(+17.46% so với MaxPool)* |
+
+### 💡 Nhận xét chuyên sâu:
+1. **Sức mạnh của trích xuất đặc trưng đa tỉ lệ (Multi-scale Feature Extraction)**:
+   - Các Inception blocks xử lý song song với các kích thước kernel $1\times 1$, $3\times 3$, và $5\times 5$, cho phép mạng đồng thời học được cả các chi tiết nhỏ (sợi bún, hành, ớt) lẫn các cấu trúc tổng thể của món ăn (bát phở, đĩa cơm tấm). Nhờ đó, độ chính xác tăng vọt từ **35.41%** lên **52.66%** (+17.25%).
+2. **Ưu thế của Global Average Pooling (GAP)**:
+   - Thay vì làm phẳng tensor $13\times 13$ tạo thành lớp Fully Connected khổng lồ như LeNet-5 (chiếm 95.6% tham số), GoogLeNet sử dụng GAP chỉ tốn 4,725 tham số ở tầng phân loại, giúp tổng số tham số của mô hình nhẹ hơn LeNet-5 tới **31.7%** mà không bị hiện tượng overfitting.

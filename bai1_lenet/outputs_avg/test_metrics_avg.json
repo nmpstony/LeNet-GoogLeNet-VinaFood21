@@ -1,0 +1,12 @@
+{
+    "model": "LeNet5",
+    "pooling": "avg",
+    "checkpoint": "outputs_avg/best.pt",
+    "epoch": 31,
+    "num_params": 339421,
+    "test_loss": 2.3484,
+    "test_accuracy": 0.3212,
+    "macro_precision": 0.3159,
+    "macro_recall": 0.3051,
+    "macro_f1": 0.3032
+}

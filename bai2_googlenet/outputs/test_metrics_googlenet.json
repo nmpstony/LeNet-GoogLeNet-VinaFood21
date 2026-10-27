@@ -1,0 +1,12 @@
+{
+    "model": "GoogLeNet",
+    "num_blocks": 4,
+    "checkpoint": "outputs/best.pt",
+    "epoch": 65,
+    "num_params": 231705,
+    "test_loss": 1.5896,
+    "test_accuracy": 0.5266,
+    "macro_precision": 0.5342,
+    "macro_recall": 0.5147,
+    "macro_f1": 0.5155
+}
