@@ -84,26 +84,3 @@ Bảng số liệu thực tế được đo trên toàn bộ **6,682 ảnh tập
 | LeNet-5 (AvgPool) | LeNet-5 (MaxPool) | GoogLeNet rút gọn (4 Blocks) |
 |:---:|:---:|:---:|
 | ![CM Avg](bai1_lenet/outputs_avg/confusion_matrix_avg.png) | ![CM Max](bai1_lenet/outputs_max/confusion_matrix_max.png) | ![CM GoogLeNet](bai2_googlenet/outputs/confusion_matrix_googlenet.png) |
-
----
-
-## 🔬 5. Phân tích chi tiết và Kết luận khoa học
-
-1. **Hiệu quả vượt trội của kiến trúc Inception (GoogLeNet)**:
-   - GoogLeNet đạt Macro-F1 **51.55%** và Accuracy **52.66%**, vượt xa LeNet-5 (34.09%).
-   - *Nguyên nhân*: Các Inception Blocks kết hợp đồng thời 4 nhánh với các kích thước kernel khác nhau ($1\times 1$, $3\times 3$, $5\times 5$), giúp mô hình trích xuất đặc trưng đa quy mô (multi-scale features) hiệu quả, nhận diện chính xác các đặc trưng phức tạp của món ăn Việt Nam.
-2. **Vai trò của Bottleneck 1×1 và Global Average Pooling (GAP)**:
-   - Dù GoogLeNet có kiến trúc sâu và nhiều lớp tích chập hơn LeNet-5 rất nhiều, tổng số tham số của GoogLeNet chỉ có **231,705** (nhẹ hơn LeNet-5 tới **31.7%**).
-   - Việc thay thế tầng `Flatten + Dense` khổng lồ bằng `AdaptiveAvgPool2d(1)` đã loại bỏ hoàn toàn hiện tượng "bùng nổ tham số" và giảm thiểu nguy cơ overfitting.
-3. **So sánh MaxPool vs AvgPool (Bài 1)**:
-   - **MaxPool2d** đạt Macro-F1 **34.09%**, cao hơn **AvgPool2d** (**30.32%**, chênh lệch +3.77%).
-   - MaxPool giữ lại các giá trị kích hoạt mạnh nhất đại diện cho các cạnh biên và cấu trúc đặc trưng, trong khi AvgPool có xu hướng làm mờ (smooth) tín hiệu đặc trưng.
-4. **Tác dụng của ReduceLROnPlateau và EarlyStopping**:
-   - Khi loss trên tập validation chững lại, `ReduceLROnPlateau` tự động giảm learning rate (từ 1e-3 xuống 5e-4 và 2.5e-4), giúp mô hình tiếp tục tối ưu vào vùng cực tiểu sâu hơn.
-   - `EarlyStopping` giúp tiết kiệm thời gian tính toán khi tự động dừng ở epoch 41 (AvgPool), epoch 63 (MaxPool), và epoch 75 (GoogLeNet) ngay khi mô hình đạt điểm tối ưu.
-
----
-
-## 🔗 6. Kaggle Notebook
-Quá trình huấn luyện thực tế trên Kaggle có thể được kiểm chứng tại:
-🔗 **[https://www.kaggle.com/code/nmpstony/ds201-lab02-vinafood21-cnn](https://www.kaggle.com/code/nmpstony/ds201-lab02-vinafood21-cnn)**
